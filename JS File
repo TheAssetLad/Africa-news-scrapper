@@ -1,0 +1,167 @@
+const PORT = 8000;
+const express = require('express');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+const app = express();
+
+const newspapers = [
+  {
+    name: 'reuters',
+    address: 'https://www.reuters.com/markets/emerging/',
+    base: ''
+  },
+  {
+    name: 'cnbc',
+    address: 'https://www.cnbc.com/world-markets/',
+    base: ''
+  },
+  {
+    name: 'marketwatch',
+    address: 'https://www.marketwatch.com/markets/emerging-markets?mod=side_nav',
+    base: ''
+  },
+  {
+    name: 'economictimes',
+    address: 'https://economictimes.indiatimes.com/topic/africa',
+    base: 'https://economictimes.indiatimes.com/'
+  },
+  {
+    name: 'em',
+    address: 'https://em-views.com/category/markets',
+    base: 'https://em-views.com/'
+  },
+  {
+    name: 'bloomberg',
+    address: 'https://www.bloomberg.com/africa',
+    base: ''
+  },
+  {
+    name: 'africanews',
+    address: 'https://www.africanews.com/business/',
+    base: 'https://www.africanews.com/'
+  },
+  {
+    name: 'africanmarket',
+    address: 'https://www.african-markets.com/en/news',
+    base: 'https://www.african-markets.com/'
+  },
+  {
+    name: 'marketscreener',
+    address: 'https://www.marketscreener.com/news/regions/africa/',
+    base: 'https://www.marketscreener.com/'
+  },
+  {
+    name: 'thetimes',
+    address: 'https://www.thetimes.co.uk/search?source=nav-desktop&q=africa',
+    base: 'https://www.thetimes.co.uk/'
+  },
+];
+
+const countries = [
+  "Algeria",
+  "Africa",
+  "Angola",
+  "Benin",
+  "Botswana",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cameroon",
+  "Central African Republic",
+  "Chad",
+  "Comoros",
+  "Democratic Republic of the Congo",
+  "Republic of the Congo",
+  "Cote d'Ivoire",
+  "Djibouti",
+  "Egypt",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Eswatini",
+  "Ethiopia",
+  "Gabon",
+  "Gambia",
+  "Ghana",
+  "Guinea",
+  "Guinea-Bissau",
+  "Kenya",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Madagascar",
+  "Malawi",
+  "Mali",
+  "Mauritania",
+  "Mauritius",
+  "Morocco",
+  "Mozambique",
+  "Namibia",
+  "Niger",
+  "Nigeria",
+  "Rwanda",
+  "Sao Tome and Principe",
+  "Senegal",
+  "Seychelles",
+  "Sierra Leone",
+  "Somalia",
+  "South Africa",
+  "South Sudan",
+  "Sudan",
+  "Tanzania",
+  "Togo",
+  "Tunisia",
+  "Uganda",
+  "Zambia",
+  "Zimbabwe"
+];
+
+const articles = [];
+
+const scrapeArticles = async (newspaper) => {
+  try {
+    const response = await axios.get(newspaper.address);
+    const html = response.data;
+    const $ = cheerio.load(html);
+
+    countries.forEach(country => {
+      $(`a:contains("${country}")`, html).each(function () {
+          const title = $(this).find('a').text().trim();
+          const url = $(this).attr('href');
+
+        // Check for duplicates
+        const duplicateArticle = articles.find(article => article.title === title && article.url === url);
+        if (!duplicateArticle) {
+          articles.push({
+            title,
+            url: newspaper.base + url,
+            source: newspaper.name
+          });
+        }
+      });
+    });
+  } catch (error) {
+    console.log('Error:', error);
+  }
+};
+
+const scrapeAllArticles = async () => {
+  await Promise.all(newspapers.map(newspaper => scrapeArticles(newspaper)));
+  console.log('Scraped articles:', articles);
+};
+
+app.get('/', (req, res) => {
+  res.json('@TheAssetLad Africa News API 🌍');
+});
+
+app.get('/news', (req, res) => {
+  scrapeAllArticles()
+    .then(() => {
+      res.json(articles);
+    })
+    .catch(() => {
+      res.status(500).send('An error occurred.');
+    });
+});
+
+app.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
